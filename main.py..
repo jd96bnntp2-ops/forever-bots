@@ -1,0 +1,73 @@
+
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
+TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL = "@foreverchiiks"
+CHANNEL_LINK = "https://t.me/foreverchiiks"
+
+async def subscribed(user_id, context):
+    try:
+        member = await context.bot.get_chat_member(CHANNEL, user_id)
+        return member.status in ("member", "administrator", "creator")
+    except Exception:
+        return False
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("📢 ПОДПИСАТЬСЯ", url=CHANNEL_LINK)],
+        [InlineKeyboardButton("✅ ПРОВЕРИТЬ ПОДПИСКУ", callback_data="check")]
+    ]
+    await update.message.reply_text(
+        "🔥 ДОБРО ПОЖАЛОВАТЬ В FOREVER BOT!\n\n"
+        "Чтобы пользоваться ботом, подпишись на наш канал.",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if await subscribed(query.from_user.id, context):
+        await query.message.reply_text(
+            "✅ ПОДПИСКА ПОДТВЕРЖДЕНА!\n\n"
+            "Теперь напиши /menu"
+        )
+    else:
+        await query.message.reply_text(
+            "❌ Ты ещё не подписан!\n\n"
+            "Подпишись на @foreverchiiks и проверь ещё раз."
+        )
+
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await subscribed(update.effective_user.id, context):
+        await update.message.reply_text("⛔ Сначала подпишись на канал. Напиши /start")
+        return
+
+    await update.message.reply_text(
+        "🔥 FOREVER — ГЛАВНОЕ МЕНЮ\n\n"
+        "👤 ОБО МНЕ:\n"
+        "Я FOREVER — создатель этого проекта.\n\n"
+        "🤖 О БОТЕ:\n"
+        "FOREVER BOT — проект с полезными функциями и инструментами.\n\n"
+        "❤️ Спасибо, что ты с нами!"
+    )
+
+async def main():
+    if not TOKEN:
+        raise ValueError("Не задан BOT_TOKEN")
+
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("menu", menu))
+    app.add_handler(CallbackQueryHandler(check, pattern="^check$"))
+
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling()
+    await app.updater.idle()
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
